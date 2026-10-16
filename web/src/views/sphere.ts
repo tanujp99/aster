@@ -3,7 +3,7 @@ import { capturePlan, dirFromYawPitch, startOrientation, yawPitchRoll, col, type
 import { M3, dot, mulv, tr } from '../engine/math';
 import { browserSphere } from '../engine/run';
 import { helperHealth, helperStitch } from '../lib/helper';
-import { pickPhotos, imagesOnly, saveBlob, cameraName, schemeSelect } from '../lib/files';
+import { pickPhotos, imagesOnly, saveBlob, cameraName } from '../lib/files';
 import { makeZip } from '../lib/zip';
 import { deviceCamera } from '../lib/exif';
 import { openInViewer } from './viewer';
@@ -130,7 +130,7 @@ export function sphereView(): HTMLElement {
       h('article', { class: 'card' },
         h('h2', {}, 'Capture'),
         h('p', { class: 'muted' }, phone ? 'Hold the phone upright, turn on the spot, and line the ring up with each dot. It shoots automatically.' : 'Open this page on your phone to capture with guide dots.'),
-        h('div', { class: 'row', style: 'margin-top:0' }, h('label', {}, 'Camera width (°) ', hfov), h('label', {}, 'File names', schemeSelect())),
+        h('label', {}, 'Camera width (°) ', hfov),
         h('button', { class: 'pill-button', onclick: capture, disabled: !navigator.mediaDevices?.getUserMedia }, 'Start capture'),
       ),
       h('article', { class: 'card' },

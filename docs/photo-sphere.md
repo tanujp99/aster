@@ -25,14 +25,13 @@ You don't have to fill every dot. Tap **Done** whenever you like, and you get a 
 
 ## File names
 
-Choose **File names** in the panorama or sphere controls. The choice is remembered.
+Pixel camera naming, UTC time with milliseconds:
 
-| Scheme | Sphere | Panorama | Time |
-| --- | --- | --- | --- |
-| Pixel (default) | `PXL_20261016_194505846.PHOTOSPHERE.jpg` | `PXL_20261016_194505846.PANO.jpg` | UTC, with milliseconds, as Pixels write it |
-| Nexus | `PANO_20261016_124505.jpg` | `PANO_20261016_124505.jpg` | local time, the same prefix for both |
-
-Exported frames use the sphere's name with `.FRAMES.zip`; this one is Aster's own, because the camera never exported frames.
+| Output | Example |
+| --- | --- |
+| Photo Sphere | `PXL_20261016_194505846.PHOTOSPHERE.jpg` |
+| Panorama | `PXL_20261016_194505846.PANO.jpg` |
+| Exported frames | `PXL_20261016_194505846.PHOTOSPHERE.FRAMES.zip` |
 
 ## Metadata
 

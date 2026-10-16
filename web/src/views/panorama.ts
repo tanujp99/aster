@@ -1,5 +1,5 @@
 import { h, fmtBytes, progressBar } from '../ui/dom';
-import { pickPhotos, imagesOnly, sortByName, saveBlob, cameraName, schemeSelect, chooseOutputFolder, canPickFolder, outputFolderName } from '../lib/files';
+import { pickPhotos, imagesOnly, sortByName, saveBlob, cameraName, chooseOutputFolder, canPickFolder, outputFolderName } from '../lib/files';
 import { helperHealth, helperStitch } from '../lib/helper';
 import { browserPanorama } from '../engine/run';
 import { openInViewer } from './viewer';
@@ -124,7 +124,6 @@ export function panoramaView(): HTMLElement {
       h('label', {}, 'Engine', engineSel),
       sizeRow,
       h('label', {}, 'JPEG quality ', qLabel, quality),
-      h('label', {}, 'File names', schemeSelect()),
       h('label', {}, 'Save to ', outLabel,
         canPickFolder()
           ? h('button', { class: 'pill-link small', onclick: async () => { outLabel.textContent = (await chooseOutputFolder()) ?? 'Downloads'; } }, 'Choose folder')
