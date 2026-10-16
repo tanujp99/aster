@@ -88,8 +88,9 @@ html.dark {
 :focus:not(:focus-visible) { outline: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 button, a, select, input { touch-action: manipulation; }
-html { scroll-behavior: smooth; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
-html, body { margin: 0; }
+/* The portfolio's layout: the page itself never scrolls, only the content
+   inside the shell does, with its own rail instead of the native bar. */
+html, body { margin: 0; height: 100%; overflow: hidden; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--background);
   color: var(--foreground);
@@ -100,7 +101,7 @@ body {
 @media (max-width: 640px) { html { font-size: 14px; } }
 @media (min-width: 641px) and (max-width: 1023px) { html { font-size: 15px; } }
 a { color: inherit; }
-#app { min-height: 100vh; display: flex; flex-direction: column; }
+#app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
 
 h1, h2, h3 { margin: 0 0 8px; line-height: 1.12; font-stretch: 125%; font-optical-sizing: auto; }
 h1 { font-weight: 800; font-size: clamp(30px, 5vw, 44px); }
@@ -113,10 +114,13 @@ h3 { font-weight: 700; font-size: 1.05rem; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--background); border-radius: 4px; }
-::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #c30b4e; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a30b3a; }
+html.dark ::-webkit-scrollbar-thumb { background: #ff90e8; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #ff6edf; }
 
 /* ------------------------------------------------------------- top bar */
-.top { display: flex; align-items: center; gap: 16px; padding: 16px 28px; max-width: 1120px; width: 100%; margin: 0 auto; }
+.top { flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 14px var(--rail-gutter); max-width: 1120px; width: 100%; margin: 0 auto; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 1.25rem; }
 .brand svg { width: 34px; height: auto; }
 .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
@@ -156,13 +160,60 @@ h3 { font-weight: 700; font-size: 1.05rem; }
 .theme.spin svg { transform: rotate(180deg); }
 
 /* ------------------------------------------------------------ layout */
-/* The portfolio's shell: one card-coloured panel sunk into the page with
-   shadow-main. Everything else sits inside it, so cards share its colour and
-   are separated by their own shadow, and recessed tracks use the page colour. */
-.page { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px 24px; }
-main.shell { min-height: calc(100vh - 140px); }
-.shell-nav { display: flex; justify-content: center; margin-bottom: 28px; }
-footer { text-align: center; color: var(--muted); font-size: 0.8rem; font-stretch: 75%; padding: 24px; }
+/* page → shell (card colour, sunk with shadow-main) → scroll host.
+   The rail sits outside the shell, in the page gutter beside it. */
+:root {
+  --rail-gutter: 1.5rem;
+  --rail-inset: 1rem;
+  --rail-width: 12px;
+  --rail-thumb: 44px;
+  --rail-thumb-width: 20px;
+  --rail-groove-dark: #00000324;
+  --rail-groove-light: #fcfcffcc;
+  --shadow-rail-pill: var(--shadow-pill);
+}
+html.dark { --rail-groove-dark: #0f121b8c; --rail-groove-light: #454a62cc; }
+@media (max-width: 1023px) {
+  :root { --shadow-rail-pill: 0 1px 3px #00000320, inset 0 2px 1px #fcfcff, inset 0 -2px 1px #0000035a; }
+  html.dark { --shadow-rail-pill: 0 1px 3px #00000326, inset 0 2px 1px #fcfcff42, inset 0 -2px 1px #0000036f; }
+}
+@media (min-width: 1024px) { :root { --rail-gutter: 2rem; } }
+
+.page { flex: 1; min-height: 0; position: relative; width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 var(--rail-gutter) var(--rail-gutter); }
+.shell {
+  height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--card-bg); border-radius: var(--r-shell); box-shadow: var(--shadow-main);
+  padding: clamp(18px, 2.4vw, 32px);
+}
+.shell-nav { flex-shrink: 0; display: flex; justify-content: center; margin-bottom: 18px; }
+.scroll-host { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; overscroll-behavior: contain; }
+.scroll-host::-webkit-scrollbar { display: none; }
+.fade-in { animation: fade-in .3s ease; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+.rail-anchor { pointer-events: none; position: absolute; inset: 0; padding: 0 var(--rail-gutter) var(--rail-gutter); }
+.rail-anchor > div { position: relative; width: 100%; height: 100%; }
+.scroll-rail {
+  position: absolute; top: 25%; height: 50%;
+  right: calc(-1 * min(calc(var(--rail-gutter) / 2), var(--rail-inset)));
+  transform: translateX(50%); pointer-events: auto;
+  width: var(--rail-width); border-radius: 999px;
+  background: var(--background); box-shadow: var(--shadow-navbar);
+  cursor: pointer; touch-action: none;
+}
+.scroll-rail.is-idle { cursor: default; }
+.scroll-rail-thumb {
+  position: absolute; left: 50%; width: var(--rail-thumb-width); height: var(--rail-thumb);
+  margin-left: calc(var(--rail-thumb-width) / -2); border-radius: 999px;
+  background: var(--button-bg); box-shadow: var(--shadow-rail-pill);
+}
+.scroll-rail-thumb::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 10px; height: 12px; transform: translate(-50%, -50%);
+  background-image: repeating-linear-gradient(to bottom, var(--rail-groove-dark) 0 1px, var(--rail-groove-light) 1px 2px, transparent 2px 5px);
+}
+
+footer { text-align: center; color: var(--muted); font-size: 0.8rem; font-stretch: 75%; padding: 28px 0 4px; }
 .view-head { margin-bottom: 24px; }
 
 /* the shell: the page's main recessed panel */
@@ -172,21 +223,20 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; font-stretc
 .hero h1 { font-weight: 900; font-size: clamp(40px, 8vw, 76px); letter-spacing: -0.01em; }
 .eyebrow { display: inline-block; margin: 0 0 14px; }
 
-.tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; margin: 18px 0 40px; }
-.tool {
-  display: block; padding: 22px; border-radius: var(--r-card); background: var(--card-bg);
-  box-shadow: var(--shadow-card); text-decoration: none; transition: transform .2s, box-shadow .2s;
-}
-@media (hover: hover) { .tool:hover { transform: translateY(-2px); } }
-.tool:active { box-shadow: var(--shadow-panel-active); transform: none; transition-duration: .08s; }
+.tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0 28px; }
+/* Flat boxes (the portfolio's detail-box): information surfaces, no shadow. */
+.tool, .card, .drop, .controls, .detail-box, .note { border-radius: var(--r-box); background: var(--tint); }
+.tool { display: block; padding: 20px; text-decoration: none; transition: background-color .2s; }
+@media (hover: hover) { .tool:hover { background: color-mix(in srgb, var(--accent) 8%, var(--tint)); } }
+.tool:active { background: color-mix(in srgb, var(--accent) 12%, var(--tint)); }
 .tool p { color: var(--muted); margin: 0; }
 .glyph {
-  display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
-  background: var(--button-bg); box-shadow: var(--shadow-pill); color: var(--accent); font-size: 20px; margin-bottom: 16px;
+  display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: var(--chip); color: var(--accent); font-size: 19px; margin-bottom: 14px;
 }
 
 /* flat box for details */
-.note, .detail-box { border-radius: var(--r-box); background: var(--tint); padding: 18px 20px; }
+.note, .detail-box { padding: 18px 20px; }
 .note p { color: var(--muted); margin: 0 0 12px; max-width: 70ch; }
 pre { background: var(--tint); border-radius: var(--r-inset); padding: 12px 14px; overflow-x: auto; margin: 0; }
 
@@ -196,8 +246,7 @@ pre { background: var(--tint); border-radius: var(--r-inset); padding: 12px 14px
 
 /* --------------------------------------------------------- drop + list */
 .drop {
-  border-radius: var(--r-card); padding: 30px; text-align: center;
-  background: var(--card-bg); box-shadow: var(--shadow-card);
+  padding: 30px; text-align: center;
   outline: 2px dashed transparent; outline-offset: -10px; transition: outline-color .2s;
 }
 .drop.over { outline-color: var(--accent); }
@@ -208,13 +257,13 @@ pre { background: var(--tint); border-radius: var(--r-inset); padding: 12px 14px
 
 .thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; }
 .thumbs figure { margin: 0; flex: 0 0 auto; position: relative; }
-.thumbs img { height: 96px; border-radius: var(--r-inset); display: block; box-shadow: var(--shadow-button); }
+.thumbs img { height: 96px; border-radius: var(--r-inset); display: block; }
 .thumbs figcaption { position: absolute; left: 5px; bottom: 5px; font-size: 11px; font-weight: 600; background: rgb(0 0 0 / .55); color: #fff; padding: 0 6px; border-radius: 99px; }
 
 /* ------------------------------------------------------------- controls */
 .controls {
   display: flex; flex-wrap: wrap; align-items: end; gap: 16px 24px; margin: 22px 0;
-  padding: 20px; border-radius: var(--r-card); background: var(--card-bg); box-shadow: var(--shadow-card);
+  padding: 20px;
 }
 label { display: flex; flex-direction: column; gap: 6px; font-size: 0.8rem; font-weight: 500; font-stretch: 75%; color: var(--muted); }
 select, input.num {
@@ -228,22 +277,33 @@ input[type=range] { accent-color: var(--accent); width: 160px; }
 .controls .pill-button { margin-left: auto; }
 
 /* ------------------------------------------------------------- buttons */
-/* pill-button = main action, accent; pill-link = secondary, raised surface,
-   fills with accent on hover. Both lift a touch on hover and sink on press. */
+/* The portfolio's buttons (globals.css .pill-button / .pill-link):
+   pill-button = the main action, accent fill; pill-link = secondary, on the
+   button surface with a hairline border, fills with the accent on hover.
+   Both sit slightly raised (shadow-sm) and lift a touch on hover. Press only
+   sinks them; nothing else changes. */
 .pill-button, .pill-link {
-  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 999px;
-  font: 600 0.92rem var(--font); font-stretch: 100%; cursor: pointer; border: 0;
-  box-shadow: var(--shadow-pill); transition: transform .2s, box-shadow .2s, background-color .2s, color .2s;
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  font: 500 0.875rem var(--font); font-stretch: 100%; cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: transform .2s, box-shadow .2s, background-color .2s, color .2s, border-color .2s;
 }
-.pill-button { background: var(--accent); color: var(--accent-ink); }
-.pill-link { background: var(--button-bg); color: var(--foreground); }
-.pill-button:active:not(:disabled), .pill-link:active:not(:disabled) { box-shadow: var(--shadow-panel-active); transition-duration: .08s; }
+.pill-button { background: var(--accent); color: var(--card-bg); border: 1px solid transparent; }
+.pill-link { background: var(--button-bg); color: var(--foreground); border: 1px solid var(--border-color); }
+.pill-button:active:not(:disabled), .pill-link:active:not(:disabled) {
+  transform: translateY(1px); box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12); transition-duration: .06s;
+}
 @media (hover: hover) {
-  .pill-button:hover:not(:disabled):not(:active), .pill-link:hover:not(:disabled):not(:active) { transform: translateY(-1px); box-shadow: var(--shadow-pill), var(--shadow-hover); }
-  .pill-link:hover:not(:disabled):not(:active) { background: var(--accent); color: var(--accent-ink); }
+  .pill-button:hover:not(:disabled):not(:active), .pill-link:hover:not(:disabled):not(:active) {
+    transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  .pill-button:hover:not(:disabled):not(:active) { background: color-mix(in srgb, var(--accent) 90%, transparent); }
+  .pill-link:hover:not(:disabled):not(:active) { background: var(--accent); color: #fff; border-color: transparent; }
+  html.dark .pill-link:hover:not(:disabled):not(:active) { color: var(--card-bg); }
 }
-.pill-link.small { padding: 5px 12px; font-size: 0.8rem; }
+.pill-link.small { padding: 4px 10px; font-size: 0.8rem; }
 .pill-button:disabled, .pill-link:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 640px) { .pill-button, .pill-link { font-size: 0.8rem; } }
 
 /* ------------------------------------------------------------- progress */
 .prog { display: flex; align-items: center; gap: 14px; margin: 18px 0; }
@@ -253,17 +313,17 @@ input[type=range] { accent-color: var(--accent); width: 160px; }
 .status.error { color: var(--err); }
 
 .result { margin-top: 22px; }
-.pano-strip { overflow-x: auto; border-radius: var(--r-box); box-shadow: var(--shadow-card); }
+.pano-strip { overflow-x: auto; border-radius: var(--r-box); }
 .pano-strip img { height: 260px; display: block; }
 
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; margin-bottom: 22px; }
-.card { border-radius: var(--r-card); padding: 22px; background: var(--card-bg); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.card { padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .card p { margin: 0; }
 
 /* -------------------------------------------------------------- viewer */
 .viewer-stage { margin-top: 14px; }
-.viewer-stage .pano360 { width: 100%; height: min(70vh, 640px); border-radius: var(--r-shell); overflow: hidden; box-shadow: var(--shadow-card); }
-.flat { height: min(70vh, 640px); overflow: hidden; border-radius: var(--r-shell); cursor: grab; touch-action: none; position: relative; background: #000; box-shadow: var(--shadow-card); }
+.viewer-stage .pano360 { width: 100%; height: min(62vh, 620px); border-radius: var(--r-box); overflow: hidden; }
+.flat { height: min(62vh, 620px); overflow: hidden; border-radius: var(--r-box); cursor: grab; touch-action: none; position: relative; background: #000; }
 .flat img { transform-origin: 0 0; position: absolute; left: 0; top: 0; max-width: none; user-select: none; }
 
 /* ------------------------------------------------- full-screen capture */
@@ -277,9 +337,8 @@ input[type=range] { accent-color: var(--accent); width: 160px; }
   .top { padding: 10px 16px; gap: 10px; }
   .navtrack { max-width: 100%; }
   .navtrack a { padding: 8px 12px; }
-  .page { padding: 0 10px 16px; }
-  .shell { padding: 18px 14px; }
-  .shell-nav { margin-bottom: 20px; }
+  .shell { padding: 16px 14px; }
+  .shell-nav { margin-bottom: 14px; }
   .controls .pill-button { margin-left: 0; width: 100%; justify-content: center; }
   .prog-label { min-width: 0; }
 }
