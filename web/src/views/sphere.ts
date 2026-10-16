@@ -61,6 +61,7 @@ export function sphereView(): HTMLElement {
         localStorage.setItem(hfovKey, hfov.value);
       }
       await finish(r.blob);
+      if (r.info?.partial) status.textContent = `Saved as a partial Photo Sphere covering ${r.info.coverage}.`;
       if (r.info && !r.info.aligned) status.textContent = 'Not enough overlap between frames to align them from the images; this one is placed from the phone sensors only.';
     } catch (e) { fail(e); }
   }
@@ -111,7 +112,7 @@ export function sphereView(): HTMLElement {
     try {
       const got = await captureSession(Number(hfov.value));
       if (got.shots.length) { shots = got.shots; refresh(); }
-      if (got.missed) status.textContent = `${got.missed} guide dots weren't captured, so those parts of the sphere will be empty.`;
+      if (got.missed) status.textContent = `Partial sphere: ${got.missed} dots skipped. It will be cropped to what you shot, like GCam's partial spheres.`;
     } catch (e) { fail(e); }
   }
 

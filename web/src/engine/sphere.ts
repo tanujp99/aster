@@ -82,11 +82,12 @@ export async function renderSphere(
     const w = wsum[o];
     if (w > 0) {
       out[o * 4] = acc[o * 3] / w; out[o * 4 + 1] = acc[o * 3 + 1] / w; out[o * 4 + 2] = acc[o * 3 + 2] / w;
+      out[o * 4 + 3] = 255;
     } else {
-      // uncovered: neutral grey so gaps are obvious but not jarring
+      // uncovered: neutral grey, alpha 0 marks it for cropping
       out[o * 4] = out[o * 4 + 1] = out[o * 4 + 2] = 40;
+      out[o * 4 + 3] = 0;
     }
-    out[o * 4 + 3] = 255;
   }
   return { data: out, width: W, height: H };
 }
@@ -127,4 +128,56 @@ function footprint(C: M3, f: number, w: number, h: number, W: number, H: number)
   const a = col(start) - 2, b = col(end) + 2;
   if (start <= end) return { y0, y1, cols: [[Math.max(0, a), Math.min(W - 1, b)]] as [number, number][] };
   return { y0, y1, cols: [[Math.max(0, a), W - 1], [0, Math.min(W - 1, b)]] as [number, number][] };
+}
+
+export interface SphereCrop extends RGBAImage {
+  fullW: number; fullH: number; left: number; top: number;
+  /** degrees the image was turned so the uncovered part sits at the edges */
+  headingDeg: number;
+  partial: boolean;
+}
+
+/**
+ * Crop a rendered sphere to what was actually captured, like GCam's partial
+ * spheres. Columns are first rolled so the largest uncovered gap of longitudes
+ * falls on the left/right edge, then the covered box is cut out. GPano's
+ * CroppedArea fields record where the piece sits on the full sphere, so
+ * viewers place it correctly and show the rest as empty.
+ */
+export function cropSphere(img: RGBAImage, margin = 0): SphereCrop {
+  const { data, width: W, height: H } = img;
+  const colHas = new Uint8Array(W), rowHas = new Uint8Array(H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (data[(y * W + x) * 4 + 3]) { colHas[x] = 1; rowHas[y] = 1; }
+  // largest circular run of empty columns
+  let bestLen = 0, bestEnd = -1, run = 0;
+  for (let k = 0; k < 2 * W; k++) {
+    if (!colHas[k % W]) { run++; if (run > bestLen && run <= W) { bestLen = run; bestEnd = k % W; } } else run = 0;
+  }
+  const minGap = Math.round(W * 0.02);
+  const full = bestLen < minGap; // covers (almost) every heading
+  // roll so the gap ends at column 0's left edge: new col = old col - shift
+  const shift = full ? 0 : (bestEnd + 1) % W;
+  let x0 = 0, x1 = W - 1;
+  if (!full) { x0 = 0; x1 = W - bestLen - 1; }
+  let y0 = 0, y1 = H - 1;
+  while (y0 < H && !rowHas[y0]) y0++;
+  while (y1 > y0 && !rowHas[y1]) y1--;
+  if (full && y0 === 0 && y1 === H - 1) {
+    for (let o = 3; o < data.length; o += 4) data[o] = 255;
+    return { data, width: W, height: H, fullW: W, fullH: H, left: 0, top: 0, headingDeg: 0, partial: false };
+  }
+  x0 = Math.max(0, x0 - margin); x1 = Math.min(W - 1, x1 + margin);
+  y0 = Math.max(0, y0 - margin); y1 = Math.min(H - 1, y1 + margin);
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const sx = (x0 + x + shift) % W, sy = y0 + y;
+    const si = (sy * W + sx) * 4, di = (y * w + x) * 4;
+    out[di] = data[si]; out[di + 1] = data[si + 1]; out[di + 2] = data[si + 2]; out[di + 3] = 255;
+  }
+  // Centre the piece on the full canvas, as GCam does, and turn the recorded
+  // heading by the same amount so it still points the right way.
+  const left = full ? x0 : Math.floor((W - w) / 2);
+  const headingDeg = (((shift + x0 - left) / W) * 360 + 360) % 360;
+  return { data: out, width: w, height: h, fullW: W, fullH: H, left, top: y0, headingDeg, partial: true };
 }

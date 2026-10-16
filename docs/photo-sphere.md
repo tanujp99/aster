@@ -16,6 +16,13 @@
 
 Shoot overlapping frames covering the whole sphere, with about 30% overlap and rows at roughly 0° and ±45°, plus straight up and down. Then go to **Photo Sphere → Stitch photos**, pick them, and stitch with the local helper. Hugin's multirow matching works out the layout from the images. Manual photos have no orientation data, so a browser-only stitch isn't available for them.
 
+## Partial spheres
+
+You don't have to fill every dot. Tap **Done** whenever you like, and you get a partial sphere, as with GCam:
+- Only the part you shot is saved, cropped tight, so there's no big grey filler.
+- The uncovered headings are rolled to the edges, and the piece is centred on the full 360 × 180 canvas.
+- GPano `CroppedArea*`, `FullPano*` and `PoseHeadingDegrees` record where the piece sits. Google Photos and Aster's viewer then show it in the right place, with the rest of the sphere empty.
+
 ## Output
 
 The output is an equirectangular JPEG (2:1) with GPano XMP. Google Photos, Facebook, and Aster's own viewer show it as an interactive sphere.

@@ -4,7 +4,13 @@
 const XMP_NS = 'http://ns.adobe.com/xap/1.0/\0';
 
 /** GPano block as Google's camera writes it for a full sphere. */
-export function gpanoXmp(width: number, height: number, sourcePhotos = 0): string {
+export interface GpanoArea { fullW: number; fullH: number; left: number; top: number; headingDeg?: number }
+
+export function gpanoXmp(width: number, height: number, sourcePhotos = 0, area?: GpanoArea): string {
+  const a = area ?? { fullW: width, fullH: height, left: 0, top: 0, headingDeg: 0 };
+  // PoseHeadingDegrees: direction at the centre of the full pano. Rolling the
+  // canvas by the crop shift turns that direction by the same angle.
+  const heading = (((a.headingDeg ?? 0) % 360) + 360) % 360;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   return `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Aster">
@@ -14,17 +20,17 @@ export function gpanoXmp(width: number, height: number, sourcePhotos = 0): strin
    GPano:CaptureSoftware="Aster"
    GPano:StitchingSoftware="Aster (img.tanujp.com)"
    GPano:ProjectionType="equirectangular"
-   GPano:PoseHeadingDegrees="0.0"
+   GPano:PoseHeadingDegrees="${heading.toFixed(1)}"
    GPano:InitialViewHeadingDegrees="0"
    GPano:InitialViewPitchDegrees="0"
    GPano:InitialViewRollDegrees="0"
    GPano:InitialHorizontalFOVDegrees="75.0"
-   GPano:CroppedAreaLeftPixels="0"
-   GPano:CroppedAreaTopPixels="0"
+   GPano:CroppedAreaLeftPixels="${a.left}"
+   GPano:CroppedAreaTopPixels="${a.top}"
    GPano:CroppedAreaImageWidthPixels="${width}"
    GPano:CroppedAreaImageHeightPixels="${height}"
-   GPano:FullPanoWidthPixels="${width}"
-   GPano:FullPanoHeightPixels="${height}"
+   GPano:FullPanoWidthPixels="${a.fullW}"
+   GPano:FullPanoHeightPixels="${a.fullH}"
    GPano:FirstPhotoDate="${now}"
    GPano:LastPhotoDate="${now}"
    GPano:SourcePhotosCount="${sourcePhotos}"

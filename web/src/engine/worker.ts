@@ -3,7 +3,7 @@
 // objects (never uploaded) and come back as an encoded JPEG Blob.
 
 import { stitchPanorama, defaultPanoOptions, type RGBAImage, type PanoOptions } from './panorama';
-import { renderSphere, type SphereFrame } from './sphere';
+import { renderSphere, cropSphere, type SphereFrame } from './sphere';
 import { alignSphere } from './sphereAlign';
 import { exifSegment } from '../lib/exif';
 import { insertXmp, gpanoXmp } from '../lib/xmp';
@@ -80,10 +80,13 @@ self.onmessage = async (ev: MessageEvent<Req>) => {
         req.width,
         progress,
       );
+      progress('Cropping to what was captured', 0, 1);
+      const c = cropSphere(r);
       progress('Encoding JPEG', 0, 1);
-      const jpeg = await encode(r, req.quality);
-      const blob = await insertXmp(jpeg, gpanoXmp(r.width, r.height, req.files.length), exifSegment(r.width, r.height));
-      post({ type: 'done', blob, width: r.width, height: r.height, info });
+      const jpeg = await encode(c, req.quality);
+      const blob = await insertXmp(jpeg, gpanoXmp(c.width, c.height, req.files.length, c), exifSegment(c.width, c.height));
+      info = { ...info, partial: c.partial, coverage: `${Math.round((c.width / c.fullW) * 360)}° × ${Math.round((c.height / c.fullH) * 180)}°` };
+      post({ type: 'done', blob, width: c.width, height: c.height, info });
     }
   } catch (e) {
     post({ type: 'error', message: e instanceof Error ? e.message : String(e) });
