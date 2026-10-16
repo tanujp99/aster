@@ -47,7 +47,28 @@ function parseTiff(v: DataView, base: number): ExifInfo {
  * Google Photos and Facebook look at EXIF as well as GPano before treating a
  * file as a camera Photo Sphere; a bare canvas JPEG has none.
  */
-export function exifSegment(width: number, height: number, date = new Date()): Uint8Array {
+export interface Camera { make: string; model: string }
+
+/** This phone's make/model as the browser reports it (Chrome on Android gives the model). */
+export async function deviceCamera(): Promise<Camera> {
+  try {
+    const ua: any = (navigator as any).userAgentData;
+    const hv = ua?.getHighEntropyValues ? await ua.getHighEntropyValues(['model']) : null;
+    let model: string = hv?.model || '';
+    if (!model) {
+      const m = navigator.userAgent.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/);
+      model = m ? m[1].trim() : '';
+    }
+    if (model && model !== 'K') {
+      const make = /^Pixel|^Nexus/i.test(model) ? 'Google' : model.split(/\s+/)[0];
+      return { make, model };
+    }
+    if (/iPhone/.test(navigator.userAgent)) return { make: 'Apple', model: 'iPhone' };
+  } catch { /* fall through */ }
+  return { make: 'Aster', model: 'Photo Sphere' };
+}
+
+export function exifSegment(width: number, height: number, date = new Date(), cam: Camera = { make: 'Aster', model: 'Photo Sphere' }): Uint8Array {
   const p2 = (n: number) => String(n).padStart(2, '0');
   const dt = `${date.getFullYear()}:${p2(date.getMonth() + 1)}:${p2(date.getDate())} ${p2(date.getHours())}:${p2(date.getMinutes())}:${p2(date.getSeconds())}`;
   type E = { tag: number; type: 2 | 3 | 4 | 5 | 7; count: number; bytes: Uint8Array };
@@ -61,7 +82,7 @@ export function exifSegment(width: number, height: number, date = new Date()): U
   const undef = (tag: number, b: number[]): E => ({ tag, type: 7, count: b.length, bytes: new Uint8Array(b) });
 
   const ifd0: E[] = [
-    ascii(0x010f, 'Aster'), ascii(0x0110, 'Photo Sphere'), short(0x0112, 1),
+    ascii(0x010f, cam.make), ascii(0x0110, cam.model), short(0x0112, 1),
     rational(0x011a, 72, 1), rational(0x011b, 72, 1), short(0x0128, 2),
     ascii(0x0131, 'Aster (img.tanujp.com)'), ascii(0x0132, dt), short(0x0213, 1),
   ];

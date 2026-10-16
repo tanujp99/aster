@@ -1,5 +1,5 @@
 import { h, fmtBytes, progressBar } from '../ui/dom';
-import { pickPhotos, imagesOnly, sortByName, saveBlob, stamp, chooseOutputFolder, canPickFolder, outputFolderName } from '../lib/files';
+import { pickPhotos, imagesOnly, sortByName, saveBlob, cameraName, schemeSelect, chooseOutputFolder, canPickFolder, outputFolderName } from '../lib/files';
 import { helperHealth, helperStitch } from '../lib/helper';
 import { browserPanorama } from '../engine/run';
 import { openInViewer } from './viewer';
@@ -78,7 +78,7 @@ export function panoramaView(): HTMLElement {
         blob = r.blob; w = r.width; hgt = r.height;
         note = `${r.info.sweepDeg.toFixed(0)}° sweep · lens ${r.info.hfovDeg.toFixed(1)}° · ${(r.info.scale * 100).toFixed(0)}% of native`;
       }
-      const name = `panorama_${stamp()}.jpg`;
+      const name = cameraName('pano');
       const where = await saveBlob(blob, name);
       prog.hide();
       const secs = ((performance.now() - t0) / 1000).toFixed(0);
@@ -124,6 +124,7 @@ export function panoramaView(): HTMLElement {
       h('label', {}, 'Engine', engineSel),
       sizeRow,
       h('label', {}, 'JPEG quality ', qLabel, quality),
+      h('label', {}, 'File names', schemeSelect()),
       h('label', {}, 'Save to ', outLabel,
         canPickFolder()
           ? h('button', { class: 'pill-link small', onclick: async () => { outLabel.textContent = (await chooseOutputFolder()) ?? 'Downloads'; } }, 'Choose folder')

@@ -23,6 +23,21 @@ You don't have to fill every dot. Tap **Done** whenever you like, and you get a 
 - The uncovered headings are rolled to the edges, and the piece is centred on the full 360 × 180 canvas.
 - GPano `CroppedArea*`, `FullPano*` and `PoseHeadingDegrees` record where the piece sits. Google Photos and Aster's viewer then show it in the right place, with the rest of the sphere empty.
 
+## File names
+
+Choose **File names** in the panorama or sphere controls. The choice is remembered.
+
+| Scheme | Sphere | Panorama | Time |
+| --- | --- | --- | --- |
+| Pixel (default) | `PXL_20261016_194505846.PHOTOSPHERE.jpg` | `PXL_20261016_194505846.PANO.jpg` | UTC, with milliseconds, as Pixels write it |
+| Nexus | `PANO_20261016_124505.jpg` | `PANO_20261016_124505.jpg` | local time, the same prefix for both |
+
+Exported frames use the sphere's name with `.FRAMES.zip`; this one is Aster's own, because the camera never exported frames.
+
+## Metadata
+
+The GPano block uses the element form and the values Google's camera writes: `CaptureSoftware` and `StitchingSoftware` are `Photo Sphere`, and `FirstPhotoDate`/`LastPhotoDate` are the real first and last frame times (ISO 8601 with milliseconds). There's also `SourcePhotosCount`, `ExposureLockUsed`, and the cropped-area fields. EXIF Make and Model come from your actual phone as the browser reports it, so a Pixel reads `Google` / `Pixel 9 Pro`. Aster never claims a camera you didn't use.
+
 ## Output
 
 The output is an equirectangular JPEG (2:1) with GPano XMP. Google Photos, Facebook, and Aster's own viewer show it as an interactive sphere.

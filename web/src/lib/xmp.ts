@@ -3,38 +3,48 @@
 
 const XMP_NS = 'http://ns.adobe.com/xap/1.0/\0';
 
-/** GPano block as Google's camera writes it for a full sphere. */
 export interface GpanoArea { fullW: number; fullH: number; left: number; top: number; headingDeg?: number }
+export interface GpanoCapture { first?: Date; last?: Date; count?: number }
 
-export function gpanoXmp(width: number, height: number, sourcePhotos = 0, area?: GpanoArea): string {
+/**
+ * GPano block in the form Google's camera writes it (element syntax, the
+ * values its Photo Sphere mode uses: CaptureSoftware/StitchingSoftware
+ * "Photo Sphere", ISO-8601 capture dates with milliseconds).
+ */
+export function gpanoXmp(width: number, height: number, area?: GpanoArea, cap: GpanoCapture = {}): string {
   const a = area ?? { fullW: width, fullH: height, left: 0, top: 0, headingDeg: 0 };
   // PoseHeadingDegrees: direction at the centre of the full pano. Rolling the
   // canvas by the crop shift turns that direction by the same angle.
   const heading = (((a.headingDeg ?? 0) % 360) + 360) % 360;
-  const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const first = (cap.first ?? new Date()).toISOString();
+  const last = (cap.last ?? cap.first ?? new Date()).toISOString();
+  const t = (k: string, v: string | number) => `   <GPano:${k}>${v}</GPano:${k}>`;
   return `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
-<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Aster">
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-  <rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
-   GPano:UsePanoramaViewer="True"
-   GPano:CaptureSoftware="Aster"
-   GPano:StitchingSoftware="Aster (img.tanujp.com)"
-   GPano:ProjectionType="equirectangular"
-   GPano:PoseHeadingDegrees="${heading.toFixed(1)}"
-   GPano:InitialViewHeadingDegrees="0"
-   GPano:InitialViewPitchDegrees="0"
-   GPano:InitialViewRollDegrees="0"
-   GPano:InitialHorizontalFOVDegrees="75.0"
-   GPano:CroppedAreaLeftPixels="${a.left}"
-   GPano:CroppedAreaTopPixels="${a.top}"
-   GPano:CroppedAreaImageWidthPixels="${width}"
-   GPano:CroppedAreaImageHeightPixels="${height}"
-   GPano:FullPanoWidthPixels="${a.fullW}"
-   GPano:FullPanoHeightPixels="${a.fullH}"
-   GPano:FirstPhotoDate="${now}"
-   GPano:LastPhotoDate="${now}"
-   GPano:SourcePhotosCount="${sourcePhotos}"
-   GPano:ExposureLockUsed="False"/>
+  <rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/">
+${[
+  t('UsePanoramaViewer', 'True'),
+  t('CaptureSoftware', 'Photo Sphere'),
+  t('StitchingSoftware', 'Photo Sphere'),
+  t('ProjectionType', 'equirectangular'),
+  t('PoseHeadingDegrees', heading.toFixed(1)),
+  t('InitialViewHeadingDegrees', Math.round(heading)),
+  t('InitialViewPitchDegrees', 0),
+  t('InitialViewRollDegrees', 0),
+  t('InitialHorizontalFOVDegrees', '75.0'),
+  t('CroppedAreaLeftPixels', a.left),
+  t('CroppedAreaTopPixels', a.top),
+  t('CroppedAreaImageWidthPixels', width),
+  t('CroppedAreaImageHeightPixels', height),
+  t('FullPanoWidthPixels', a.fullW),
+  t('FullPanoHeightPixels', a.fullH),
+  t('FirstPhotoDate', first),
+  t('LastPhotoDate', last),
+  t('SourcePhotosCount', cap.count ?? 0),
+  t('ExposureLockUsed', 'False'),
+].join('\n')}
+  </rdf:Description>
  </rdf:RDF>
 </x:xmpmeta>
 <?xpacket end="w"?>`;

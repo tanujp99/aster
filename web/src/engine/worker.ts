@@ -11,7 +11,8 @@ import { readExif } from '../lib/exif';
 
 type Req =
   | { kind: 'panorama'; files: File[]; options?: Partial<PanoOptions>; quality: number }
-  | { kind: 'sphere'; files: Blob[]; frames: SphereFrame[]; width: number; quality: number };
+  | { kind: 'sphere'; files: Blob[]; frames: SphereFrame[]; width: number; quality: number;
+      first?: number; last?: number; camera?: { make: string; model: string } };
 
 const post = (m: unknown) => (self as unknown as Worker).postMessage(m);
 const progress = (stage: string, done: number, total: number) => post({ type: 'progress', stage, done, total });
@@ -84,7 +85,10 @@ self.onmessage = async (ev: MessageEvent<Req>) => {
       const c = cropSphere(r);
       progress('Encoding JPEG', 0, 1);
       const jpeg = await encode(c, req.quality);
-      const blob = await insertXmp(jpeg, gpanoXmp(c.width, c.height, req.files.length, c), exifSegment(c.width, c.height));
+      const first = req.first ? new Date(req.first) : new Date(), last = req.last ? new Date(req.last) : first;
+      const blob = await insertXmp(jpeg,
+        gpanoXmp(c.width, c.height, c, { first, last, count: req.files.length }),
+        exifSegment(c.width, c.height, first, req.camera));
       info = { ...info, partial: c.partial, coverage: `${Math.round((c.width / c.fullW) * 360)}° × ${Math.round((c.height / c.fullH) * 180)}°` };
       post({ type: 'done', blob, width: c.width, height: c.height, info });
     }

@@ -21,5 +21,7 @@ function call(msg: unknown, onProgress: (stage: string, frac: number) => void): 
 export const browserPanorama = (files: File[], options: Partial<PanoOptions>, quality: number, onProgress: (s: string, f: number) => void) =>
   call({ kind: 'panorama', files, options, quality }, onProgress);
 
-export const browserSphere = (files: Blob[], frames: SphereFrame[], width: number, quality: number, onProgress: (s: string, f: number) => void) =>
-  call({ kind: 'sphere', files, frames, width, quality }, onProgress);
+export const browserSphere = (
+  files: Blob[], frames: SphereFrame[], width: number, quality: number, onProgress: (s: string, f: number) => void,
+  meta: { first?: number; last?: number; camera?: { make: string; model: string } } = {},
+) => call({ kind: 'sphere', files, frames, width, quality, ...meta }, onProgress);

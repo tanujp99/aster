@@ -3,11 +3,12 @@ import { capturePlan, dirFromYawPitch, startOrientation, yawPitchRoll, col, type
 import { M3, dot, mulv, tr } from '../engine/math';
 import { browserSphere } from '../engine/run';
 import { helperHealth, helperStitch } from '../lib/helper';
-import { pickPhotos, imagesOnly, saveBlob, stamp } from '../lib/files';
+import { pickPhotos, imagesOnly, saveBlob, cameraName, schemeSelect } from '../lib/files';
 import { makeZip } from '../lib/zip';
+import { deviceCamera } from '../lib/exif';
 import { openInViewer } from './viewer';
 
-interface Shot { blob: Blob; name: string; C: M3 | null; hfov: number }
+interface Shot { blob: Blob; name: string; C: M3 | null; hfov: number; at: number }
 
 const hfovKey = 'aster.hfov';
 
@@ -41,7 +42,7 @@ export function sphereView(): HTMLElement {
 
   async function finish(blob: Blob) {
     prog.hide();
-    const name = `photosphere_${stamp()}.jpg`;
+    const name = cameraName('sphere');
     const where = await saveBlob(blob, name);
     result.replaceChildren(
       h('p', {}, 'Saved to ', h('span', { class: 'mono' }, where), ' with Photo Sphere metadata.'),
@@ -53,7 +54,9 @@ export function sphereView(): HTMLElement {
     status.textContent = ''; result.replaceChildren();
     try {
       const frames = shots.map((s) => ({ C: s.C!, hfovDeg: s.hfov }));
-      const r = await browserSphere(shots.map((s) => s.blob), frames, 6144, 0.93, (st, f) => prog.set(st, f));
+      const times = shots.map((s) => s.at);
+      const r = await browserSphere(shots.map((s) => s.blob), frames, 6144, 0.93, (st, f) => prog.set(st, f),
+        { first: Math.min(...times), last: Math.max(...times), camera: await deviceCamera() });
       // the aligner measures the real camera width; remember it so the next
       // capture's guide dots line up with what the camera sees
       if (r.info?.hfovDeg) {
@@ -80,12 +83,12 @@ export function sphereView(): HTMLElement {
   }
 
   async function exportZip() {
-    const meta = shots.map((s) => ({ file: s.name, C: s.C, hfov: s.hfov, ...(s.C ? yawPitchRoll(s.C) : {}) }));
+    const meta = shots.map((s) => ({ file: s.name, C: s.C, hfov: s.hfov, at: s.at, ...(s.C ? yawPitchRoll(s.C) : {}) }));
     const zip = await makeZip([
       ...shots.map((s) => ({ name: s.name, data: s.blob })),
       { name: 'orientations.json', data: new Blob([JSON.stringify(meta, null, 1)], { type: 'application/json' }) },
     ]);
-    const where = await saveBlob(zip, `sphere_frames_${stamp()}.zip`);
+    const where = await saveBlob(zip, cameraName('sphere', 'FRAMES.zip'));
     status.textContent = `Exported to ${where}. Unzip on your computer and open the folder under “Stitch photos”.`;
   }
 
@@ -103,7 +106,7 @@ export function sphereView(): HTMLElement {
     const imgs = imagesOnly(all);
     shots = imgs.map((f) => {
       const m = meta?.find((x) => x.file === f.name);
-      return { blob: f, name: f.name, C: m?.C ?? null, hfov: m?.hfov ?? Number(hfov.value) };
+      return { blob: f, name: f.name, C: m?.C ?? null, hfov: m?.hfov ?? Number(hfov.value), at: m?.at ?? f.lastModified };
     });
     refresh();
   }
@@ -127,7 +130,7 @@ export function sphereView(): HTMLElement {
       h('article', { class: 'card' },
         h('h2', {}, 'Capture'),
         h('p', { class: 'muted' }, phone ? 'Hold the phone upright, turn on the spot, and line the ring up with each dot. It shoots automatically.' : 'Open this page on your phone to capture with guide dots.'),
-        h('label', {}, 'Camera width (°) ', hfov),
+        h('div', { class: 'row', style: 'margin-top:0' }, h('label', {}, 'Camera width (°) ', hfov), h('label', {}, 'File names', schemeSelect())),
         h('button', { class: 'pill-button', onclick: capture, disabled: !navigator.mediaDevices?.getUserMedia }, 'Start capture'),
       ),
       h('article', { class: 'card' },
@@ -188,7 +191,7 @@ async function captureSession(hfovDeg: number): Promise<{ shots: Shot[]; missed:
       const blob: Blob = await new Promise((r) => c.toBlob((b) => r(b!), 'image/jpeg', 0.95));
       const n = shots.length + 1;
       // "camera width" = horizontal field of view of the saved frame
-      shots.push({ blob, name: `sphere_${String(n).padStart(3, '0')}.jpg`, C, hfov: hfovDeg });
+      shots.push({ blob, name: `frame_${String(n).padStart(3, '0')}.jpg`, C, hfov: hfovDeg, at: Date.now() });
       if (navigator.vibrate) navigator.vibrate(30);
       busy = false;
     };
@@ -200,6 +203,7 @@ async function captureSession(hfovDeg: number): Promise<{ shots: Shot[]; missed:
       const g = canvas.getContext('2d')!;
       g.clearRect(0, 0, W, H);
       const C = feed.C;
+      if (!video.videoWidth) { info.textContent = 'Starting camera…'; return; }
       if (!C) { info.textContent = 'Waiting for motion sensors…'; return; }
       if (yaw0 === null) yaw0 = yawPitchRoll(C).yaw;
       const R = tr(C);
@@ -218,14 +222,19 @@ async function captureSession(hfovDeg: number): Promise<{ shots: Shot[]; missed:
         const c = mulv(R, d);
         if (c[2] <= 0.1) return;
         const x = W / 2 + (f * c[0]) / c[2], y = H / 2 + (f * c[1]) / c[2];
+        if (taken[k]) return; // GCam drops a dot once its frame is shot
         g.beginPath();
-        g.arc(x, y, (taken[k] ? 7 : 12) * devicePixelRatio, 0, Math.PI * 2);
-        g.fillStyle = taken[k] ? 'rgba(255,255,255,0.35)' : 'rgba(255,144,232,0.95)';
+        g.arc(x, y, 11 * devicePixelRatio, 0, Math.PI * 2);
+        g.fillStyle = 'rgba(255,255,255,0.92)';
+        g.shadowColor = 'rgba(0,0,0,0.45)';
+        g.shadowBlur = 6 * devicePixelRatio;
         g.fill();
+        g.shadowBlur = 0;
       });
       // centre ring
       g.lineWidth = 3 * devicePixelRatio;
-      g.strokeStyle = nearAng < 3 ? '#7dffb2' : 'rgba(255,255,255,0.9)';
+      g.strokeStyle = nearAng < 3 ? '#ffffff' : 'rgba(255,255,255,0.7)';
+      g.lineWidth = (nearAng < 3 ? 4 : 2.5) * devicePixelRatio;
       g.beginPath(); g.arc(W / 2, H / 2, 26 * devicePixelRatio, 0, Math.PI * 2); g.stroke();
       const left = taken.filter((t) => !t).length;
       info.textContent = left ? `${shots.length} shot · ${left} to go${nearAng < 8 ? ' · hold still' : ''}` : 'All dots captured — tap Done';
@@ -233,6 +242,10 @@ async function captureSession(hfovDeg: number): Promise<{ shots: Shot[]; missed:
         if (++hold > 6) { taken[nearest] = true; hold = 0; grab(C); }
       } else hold = 0;
     };
-    video.onloadedmetadata = () => draw();
+    // Start drawing now. Waiting for 'loadedmetadata' missed the event on a
+    // cold first start (it fired before the handler was attached), which is
+    // why the dots only appeared on the second attempt.
+    video.play().catch(() => {});
+    draw();
   });
 }

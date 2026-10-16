@@ -59,6 +59,38 @@ export async function saveBlob(blob: Blob, name: string): Promise<string> {
   return `Downloads/${name}`;
 }
 
+export type NameScheme = 'pixel' | 'nexus';
+const schemeKey = 'aster.names';
+export const getScheme = (): NameScheme => {
+  try { return localStorage.getItem(schemeKey) === 'nexus' ? 'nexus' : 'pixel'; } catch { return 'pixel'; }
+};
+export const setScheme = (s: NameScheme) => { try { localStorage.setItem(schemeKey, s); } catch { /* private mode */ } };
+
+/**
+ * File names in the Google camera schemes.
+ *  Pixel (Google Camera 7.5+): PXL_YYYYMMDD_HHMMSSmmm.<MODE>.jpg, time in UTC,
+ *    e.g. PXL_20220227_234037551.PHOTOSPHERE.jpg, PXL_20220806_164904612.PANO.jpg
+ *  Nexus (Google Camera 2013–2016): PANO_YYYYMMDD_HHMMSS.jpg, local time, the
+ *    same prefix for photo spheres and panoramas, e.g. PANO_20130630_162111.jpg
+ */
+export function cameraName(kind: 'sphere' | 'pano', ext = 'jpg', d = new Date(), scheme = getScheme()): string {
+  const p = (n: number, w = 2) => String(n).padStart(w, '0');
+  if (scheme === 'nexus') {
+    return `PANO_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.${ext}`;
+  }
+  const ts = `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}_${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}${p(d.getUTCMilliseconds(), 3)}`;
+  return `PXL_${ts}.${kind === 'sphere' ? 'PHOTOSPHERE' : 'PANO'}.${ext}`;
+}
+
+/** A small select for the naming scheme, shared by the panorama and sphere views. */
+export function schemeSelect(): HTMLSelectElement {
+  const s = document.createElement('select');
+  s.innerHTML = '<option value="pixel">Pixel (PXL_…)</option><option value="nexus">Nexus (PANO_…)</option>';
+  s.value = getScheme();
+  s.onchange = () => setScheme(s.value as NameScheme);
+  return s;
+}
+
 export function stamp(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, '0');

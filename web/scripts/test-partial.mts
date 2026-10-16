@@ -16,5 +16,5 @@ const r = await renderSphere({ count: files.length, frame: (i) => ({ C: meta.fra
 const c = cropSphere(r);
 console.log({ w: c.width, h: c.height, fullW: c.fullW, left: c.left, top: c.top, heading: c.headingDeg.toFixed(1), partial: c.partial });
 const jpg = await sharp(Buffer.from(c.data.buffer), { raw: { width: c.width, height: c.height, channels: 4 } }).jpeg({ quality: 90 }).toBuffer();
-const b = await insertXmp(new Blob([jpg]), gpanoXmp(c.width, c.height, files.length, c), exifSegment(c.width, c.height));
+const b = await insertXmp(new Blob([jpg]), gpanoXmp(c.width, c.height, c, { first: new Date(Date.now() - 60000), last: new Date(), count: files.length }), exifSegment(c.width, c.height, new Date(), { make: "Google", model: "Pixel 9 Pro" }));
 writeFileSync(out, Buffer.from(await b.arrayBuffer()));
