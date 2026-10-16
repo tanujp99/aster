@@ -1,0 +1,20 @@
+// End-to-end via the local helper: page on :4173 → helper on 127.0.0.1:7878.
+import { chromium } from 'playwright';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
+const dir = process.argv[2], shot = process.argv[3];
+const files = readdirSync(dir).filter((f) => /\.jpe?g$/i.test(f)).sort().map((f) => join(dir, f));
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
+await p.goto('http://localhost:4173/#/panorama');
+await p.waitForFunction(() => document.querySelector('.pill')?.textContent?.startsWith('Helper 0'), null, { timeout: 20000 });
+console.log('pill:', await p.textContent('.pill'), 'engine:', await p.inputValue('#engine'));
+const [fc] = await Promise.all([p.waitForEvent('filechooser'), p.click('text=Choose photos')]);
+await fc.setFiles(files);
+await p.click('text=Stitch panorama');
+const d = await p.waitForEvent('download', { timeout: 900000 });
+console.log('download:', d.suggestedFilename());
+await p.waitForTimeout(2000);
+console.log('meta:', await p.textContent('.result .muted'));
+await p.screenshot({ path: shot });
+await b.close();

@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const [file, shot] = process.argv.slice(2);
+const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 1100, height: 800 }, colorScheme: 'dark' });
+p.on('pageerror', (e) => console.log('pageerror', e.message));
+await p.goto('http://localhost:4173/#/viewer');
+const [fc] = await Promise.all([p.waitForEvent('filechooser'), p.click('text=Open an image')]);
+await fc.setFiles(file);
+await p.waitForTimeout(15000);
+console.log('stage:', (await p.innerHTML('.viewer-stage')).slice(0, 300));
+console.log('pannellum:', await p.evaluate(() => typeof window.pannellum));
+console.log(await p.textContent('.view .muted'));
+await p.screenshot({ path: shot });
+await b.close();
