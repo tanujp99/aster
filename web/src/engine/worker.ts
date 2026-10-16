@@ -4,6 +4,8 @@
 
 import { stitchPanorama, defaultPanoOptions, type RGBAImage, type PanoOptions } from './panorama';
 import { renderSphere, type SphereFrame } from './sphere';
+import { alignSphere } from './sphereAlign';
+import { exifSegment } from '../lib/exif';
 import { insertXmp, gpanoXmp } from '../lib/xmp';
 import { readExif } from '../lib/exif';
 
@@ -61,15 +63,27 @@ self.onmessage = async (ev: MessageEvent<Req>) => {
       const blob = await encode(r, req.quality);
       post({ type: 'done', blob, width: r.width, height: r.height, info: r.info });
     } else {
+      let frames = req.frames;
+      let info: Record<string, unknown> = { frames: req.files.length, aligned: false };
+      if (req.files.length >= 2) {
+        const al = await alignSphere({
+          C: frames.map((f) => f.C), hfovDeg: frames[0].hfovDeg,
+          load: (i, m) => decode(req.files[i], m), progress,
+        });
+        if (al.pairs >= req.files.length - 1) {
+          frames = frames.map((_f, i) => ({ C: al.C[i], hfovDeg: al.hfovDeg, gain: al.gains[i] }));
+          info = { ...info, aligned: true, pairs: al.pairs, rmsDeg: al.rmsDeg, hfovDeg: al.hfovDeg };
+        }
+      }
       const r = await renderSphere(
-        { count: req.files.length, frame: (i) => req.frames[i], load: (i, m) => decode(req.files[i], m) },
+        { count: req.files.length, frame: (i) => frames[i], load: (i, m) => decode(req.files[i], m) },
         req.width,
         progress,
       );
       progress('Encoding JPEG', 0, 1);
       const jpeg = await encode(r, req.quality);
-      const blob = await insertXmp(jpeg, gpanoXmp(r.width, r.height));
-      post({ type: 'done', blob, width: r.width, height: r.height, info: { frames: req.files.length } });
+      const blob = await insertXmp(jpeg, gpanoXmp(r.width, r.height, req.files.length), exifSegment(r.width, r.height));
+      post({ type: 'done', blob, width: r.width, height: r.height, info });
     }
   } catch (e) {
     post({ type: 'error', message: e instanceof Error ? e.message : String(e) });

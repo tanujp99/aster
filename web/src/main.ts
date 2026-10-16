@@ -27,10 +27,11 @@ const brand = h('a', { class: 'brand', href: '#/', 'aria-label': 'Aster home' })
 brand.style.color = 'var(--accent)';
 brand.append(markSvg(), h('span', { style: 'color: var(--foreground)' }, 'Aster'));
 
-const main = h('main', {});
+const content = h('div', {});
+const main = h('main', { class: 'shell' }, h('div', { class: 'shell-nav' }, nav), content);
 document.querySelector('#app')!.append(
-  h('div', { class: 'top' }, brand, nav, h('div', { class: 'top-right' }, pill, themeSwitcher())),
-  main,
+  h('div', { class: 'top' }, brand, h('div', { class: 'top-right' }, pill, themeSwitcher())),
+  h('div', { class: 'page' }, main),
   h('footer', {}, 'Aster · processing happens on this device · nothing is uploaded'),
 );
 
@@ -46,7 +47,7 @@ function moveSlider() {
 function render() {
   const key = location.hash.replace(/^#\/?/, '').split('?')[0];
   const view = routes[key] ?? homeView;
-  main.replaceChildren(view());
+  content.replaceChildren(view());
   nav.querySelectorAll('a').forEach((a) => a.classList.toggle('on', a.getAttribute('href') === `#/${key}`));
   moveSlider();
   window.scrollTo(0, 0);

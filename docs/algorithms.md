@@ -27,9 +27,22 @@ This is the pipeline that produced the Rainier panoramas:
 
 ## Photo Sphere
 
-- **Browser preview** (`web/src/engine/sphere.ts`): each frame is placed using its phone-sensor rotation and projected onto a 6,144 × 3,072 equirectangular canvas. Frames are feather-blended with edge-distance weights. Sensor orientation is only good to a degree or two, so this is a quick preview.
-- **Helper** (`stitch_sphere`): `pto_gen -p 2 -f 360`. When phone orientations exist, they seed yaw, pitch, roll and field of view, and `cpfind --prealigned` matches only frames that overlap. Without them (photos shot by hand), `cpfind --multirow` finds the layout from the images alone. Then `cpclean`, `autooptimiser -a -m -l`, a full 360 × 180 equirectangular canvas, and an enblend render.
-- **Metadata:** GPano XMP is written into the JPEG with no dependencies, in both JavaScript (`src/lib/xmp.ts`) and Python (`helper/aster/xmp.py`). Google Photos and Facebook then open the file as an interactive sphere.
+The approach follows the old Pixel and Nexus Photo Sphere. Sensors give the starting layout and gravity; the images decide the exact placement.
+
+1. **Capture** (`web/src/views/sphere.ts`): guide dots on rings at 0° and ±45° plus both poles. The phone auto-shoots when the centre ring is on a dot and the phone is still, and records the sensor rotation with each frame.
+2. **Alignment** (`web/src/engine/sphereAlign.ts`):
+   - ORB features are found on every frame, downscaled to 1,024 px.
+   - Only frames whose sensor view directions are close enough to overlap get matched. This keeps look-alike walls and ceilings on opposite sides from being linked.
+   - Matches go through a ratio test (0.75) and a RANSAC homography (4 px); a pure rotation is a homography. Each pair keeps at most 50 points.
+   - **Bundle adjustment** then refines every frame's rotation plus one shared focal length, with Levenberg–Marquardt. It minimises the angle between matched rays under a Cauchy robust loss, plus a weak prior (σ = 3°) tying each frame to its sensor reading. The prior fixes the overall heading and keeps the horizon level from the accelerometer.
+   - The camera width it measures is saved, so the next capture's dots line up.
+   - Exposure is matched with the same gain solver as the panorama engine.
+3. **Render** (`web/src/engine/sphere.ts`): the 6,144 × 3,072 equirectangular output only visits each frame's footprint. The weights are seam-style: the distance to the frame edge raised to the 6th power. The frame nearest the centre owns each pixel, and neighbours blend only in a narrow band, so people who moved between shots aren't doubled. A plain average of all overlapping frames is what produced the ghosting.
+4. **Metadata**: a camera-style EXIF block (make, model, software, capture time, size; passes `exiftool -validate`) plus the full GPano block a Pixel writes. Both are needed before Google Photos and Facebook treat the file as a sphere.
+
+**Synthetic test** (`web/scripts/test-sphere-align.mts`): 12 frames are shot from a known world, then their sensor readings are corrupted by about 4° and the lens width is guessed wrong (52° against a true 46°). After alignment, frames agree to 0.09° RMS, and the lens is recovered as 45.97°.
+
+**Helper** (`stitch_sphere`): Hugin with `cpfind --prealigned` from the sensor layout, or `--multirow` for photos shot by hand. Then `autooptimiser`, a full 360 × 180 canvas, and enblend.
 
 ## Sensor maths (`web/src/capture/orientation.ts`)
 

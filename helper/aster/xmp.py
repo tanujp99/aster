@@ -15,7 +15,11 @@ def gpano_xmp(width: int, height: int, full_w: int | None = None, full_h: int | 
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
    GPano:UsePanoramaViewer="True"
+   GPano:CaptureSoftware="Aster"
+   GPano:StitchingSoftware="Aster helper (Hugin)"
    GPano:ProjectionType="equirectangular"
+   GPano:InitialViewHeadingDegrees="0"
+   GPano:InitialHorizontalFOVDegrees="75.0"
    GPano:CroppedAreaImageWidthPixels="{width}"
    GPano:CroppedAreaImageHeightPixels="{height}"
    GPano:FullPanoWidthPixels="{full_w}"

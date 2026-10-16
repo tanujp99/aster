@@ -84,7 +84,10 @@ html.dark {
 }
 
 /* ------------------------------------------------------------ base */
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button, a, select, input { touch-action: manipulation; }
 html { scroll-behavior: smooth; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
 html, body { margin: 0; }
 body {
@@ -113,12 +116,7 @@ h3 { font-weight: 700; font-size: 1.05rem; }
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
 
 /* ------------------------------------------------------------- top bar */
-.top {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 24px; position: sticky; top: 0; z-index: 5;
-  background: color-mix(in srgb, var(--background) 88%, transparent);
-  backdrop-filter: blur(10px);
-}
+.top { display: flex; align-items: center; gap: 16px; padding: 16px 28px; max-width: 1120px; width: 100%; margin: 0 auto; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 1.25rem; }
 .brand svg { width: 34px; height: auto; }
 .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
@@ -128,12 +126,11 @@ h3 { font-weight: 700; font-size: 1.05rem; }
 .navtrack {
   position: relative; display: flex; padding: 4px; border-radius: 999px;
   background: var(--background); box-shadow: var(--shadow-navbar);
-  margin: 0 auto;
 }
 .navtrack a {
   position: relative; z-index: 1; padding: 8px 16px; border-radius: 999px;
   text-decoration: none; font-size: 0.875rem; font-weight: 500;
-  color: var(--foreground); opacity: 0.62; transition: color .2s, opacity .2s; white-space: nowrap;
+  color: var(--foreground); opacity: 0.62; white-space: nowrap; -webkit-user-select: none; user-select: none;
 }
 .navtrack a.on { color: var(--accent); opacity: 1; }
 .navtrack .slider {
@@ -153,17 +150,23 @@ h3 { font-weight: 700; font-size: 1.05rem; }
   background: var(--button-bg); box-shadow: var(--shadow-pill);
   display: grid; place-items: center; transition: box-shadow .3s;
 }
-.theme:hover { box-shadow: var(--shadow-hover); }
+.theme:active { box-shadow: var(--shadow-panel-active); }
+@media (hover: hover) { .theme:hover:not(:active) { box-shadow: var(--shadow-pill), var(--shadow-hover); } }
 .theme svg { width: 24px; height: 24px; transition: transform .6s cubic-bezier(.3, 1.4, .5, 1); }
 .theme.spin svg { transform: rotate(180deg); }
 
 /* ------------------------------------------------------------ layout */
-main { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 24px 24px 64px; }
+/* The portfolio's shell: one card-coloured panel sunk into the page with
+   shadow-main. Everything else sits inside it, so cards share its colour and
+   are separated by their own shadow, and recessed tracks use the page colour. */
+.page { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px 24px; }
+main.shell { min-height: calc(100vh - 140px); }
+.shell-nav { display: flex; justify-content: center; margin-bottom: 28px; }
 footer { text-align: center; color: var(--muted); font-size: 0.8rem; font-stretch: 75%; padding: 24px; }
 .view-head { margin-bottom: 24px; }
 
 /* the shell: the page's main recessed panel */
-.shell { background: var(--background); border-radius: var(--r-shell); box-shadow: var(--shadow-main); padding: clamp(18px, 3vw, 32px); }
+.shell { background: var(--card-bg); border-radius: var(--r-shell); box-shadow: var(--shadow-main); padding: clamp(20px, 3vw, 36px); }
 
 .hero { padding: 28px 0 28px; }
 .hero h1 { font-weight: 900; font-size: clamp(40px, 8vw, 76px); letter-spacing: -0.01em; }
@@ -174,8 +177,8 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; font-stretc
   display: block; padding: 22px; border-radius: var(--r-card); background: var(--card-bg);
   box-shadow: var(--shadow-card); text-decoration: none; transition: transform .2s, box-shadow .2s;
 }
-.tool:hover { transform: translateY(-2px); }
-.tool:active { box-shadow: var(--shadow-panel-active); transform: none; }
+@media (hover: hover) { .tool:hover { transform: translateY(-2px); } }
+.tool:active { box-shadow: var(--shadow-panel-active); transform: none; transition-duration: .08s; }
 .tool p { color: var(--muted); margin: 0; }
 .glyph {
   display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
@@ -234,9 +237,11 @@ input[type=range] { accent-color: var(--accent); width: 160px; }
 }
 .pill-button { background: var(--accent); color: var(--accent-ink); }
 .pill-link { background: var(--button-bg); color: var(--foreground); }
-.pill-button:hover:not(:disabled), .pill-link:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-pill), var(--shadow-hover); }
-.pill-link:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
-.pill-button:active:not(:disabled), .pill-link:active:not(:disabled) { transform: none; box-shadow: var(--shadow-panel-active); }
+.pill-button:active:not(:disabled), .pill-link:active:not(:disabled) { box-shadow: var(--shadow-panel-active); transition-duration: .08s; }
+@media (hover: hover) {
+  .pill-button:hover:not(:disabled):not(:active), .pill-link:hover:not(:disabled):not(:active) { transform: translateY(-1px); box-shadow: var(--shadow-pill), var(--shadow-hover); }
+  .pill-link:hover:not(:disabled):not(:active) { background: var(--accent); color: var(--accent-ink); }
+}
 .pill-link.small { padding: 5px 12px; font-size: 0.8rem; }
 .pill-button:disabled, .pill-link:disabled { opacity: .45; cursor: not-allowed; }
 
@@ -269,10 +274,12 @@ input[type=range] { accent-color: var(--accent); width: 160px; }
 .cap-bar { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); left: 0; right: 0; display: flex; justify-content: center; gap: 12px; }
 
 @media (max-width: 720px) {
-  .top { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
-  .navtrack { order: 3; margin: 0 auto; max-width: 100%; overflow-x: auto; }
+  .top { padding: 10px 16px; gap: 10px; }
+  .navtrack { max-width: 100%; }
   .navtrack a { padding: 8px 12px; }
-  main { padding: 16px 16px 48px; }
+  .page { padding: 0 10px 16px; }
+  .shell { padding: 18px 14px; }
+  .shell-nav { margin-bottom: 20px; }
   .controls .pill-button { margin-left: 0; width: 100%; justify-content: center; }
   .prog-label { min-width: 0; }
 }

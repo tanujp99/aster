@@ -41,3 +41,58 @@ function parseTiff(v: DataView, base: number): ExifInfo {
   });
   return out;
 }
+
+/**
+ * A camera-style EXIF APP1 segment (make/model, software, capture time, size).
+ * Google Photos and Facebook look at EXIF as well as GPano before treating a
+ * file as a camera Photo Sphere; a bare canvas JPEG has none.
+ */
+export function exifSegment(width: number, height: number, date = new Date()): Uint8Array {
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  const dt = `${date.getFullYear()}:${p2(date.getMonth() + 1)}:${p2(date.getDate())} ${p2(date.getHours())}:${p2(date.getMinutes())}:${p2(date.getSeconds())}`;
+  type E = { tag: number; type: 2 | 3 | 4 | 5 | 7; count: number; bytes: Uint8Array };
+  const ascii = (tag: number, t: string): E => { const b = new TextEncoder().encode(t + '\0'); return { tag, type: 2, count: b.length, bytes: b }; };
+  const short = (tag: number, v: number): E => ({ tag, type: 3, count: 1, bytes: new Uint8Array([v >> 8, v & 255, 0, 0]) });
+  const long = (tag: number, v: number): E => ({ tag, type: 4, count: 1, bytes: new Uint8Array([v >>> 24, (v >> 16) & 255, (v >> 8) & 255, v & 255]) });
+  const rational = (tag: number, n: number, d: number): E => {
+    const b = new Uint8Array(8); const dv = new DataView(b.buffer); dv.setUint32(0, n); dv.setUint32(4, d);
+    return { tag, type: 5, count: 1, bytes: b };
+  };
+  const undef = (tag: number, b: number[]): E => ({ tag, type: 7, count: b.length, bytes: new Uint8Array(b) });
+
+  const ifd0: E[] = [
+    ascii(0x010f, 'Aster'), ascii(0x0110, 'Photo Sphere'), short(0x0112, 1),
+    rational(0x011a, 72, 1), rational(0x011b, 72, 1), short(0x0128, 2),
+    ascii(0x0131, 'Aster (img.tanujp.com)'), ascii(0x0132, dt), short(0x0213, 1),
+  ];
+  const exif: E[] = [
+    undef(0x9000, [0x30, 0x32, 0x33, 0x32]), ascii(0x9003, dt), ascii(0x9004, dt),
+    undef(0x9101, [1, 2, 3, 0]), undef(0xa000, [0x30, 0x31, 0x30, 0x30]),
+    short(0xa001, 1), long(0xa002, width), long(0xa003, height),
+  ];
+  const ifdSize = (k: number) => 2 + 12 * k + 4;
+  const ifd0Off = 8, exifOff = ifd0Off + ifdSize(ifd0.length + 1);
+  let dataOff = exifOff + ifdSize(exif.length);
+  const tiff = new Uint8Array(2048);
+  const v = new DataView(tiff.buffer);
+  tiff.set([0x4d, 0x4d, 0, 42, 0, 0, 0, 8]); // big-endian TIFF, IFD0 at 8
+  const write = (at: number, entries: E[]) => {
+    entries.sort((a, b) => a.tag - b.tag);
+    v.setUint16(at, entries.length);
+    entries.forEach((e, k) => {
+      const o = at + 2 + 12 * k;
+      v.setUint16(o, e.tag); v.setUint16(o + 2, e.type); v.setUint32(o + 4, e.count);
+      if (e.bytes.length <= 4) tiff.set(e.bytes, o + 8);
+      else { v.setUint32(o + 8, dataOff); tiff.set(e.bytes, dataOff); dataOff += e.bytes.length + (e.bytes.length & 1); }
+    });
+    v.setUint32(at + 2 + 12 * entries.length, 0);
+  };
+  write(ifd0Off, [...ifd0, long(0x8769, exifOff)]);
+  write(exifOff, exif);
+  const body = tiff.subarray(0, dataOff);
+  const len = body.length + 8;
+  const seg = new Uint8Array(10 + body.length);
+  seg.set([0xff, 0xe1, len >> 8, len & 0xff, 0x45, 0x78, 0x69, 0x66, 0, 0]);
+  seg.set(body, 10);
+  return seg;
+}

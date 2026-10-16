@@ -319,7 +319,7 @@ function searchFocal(total: (f: number) => number, side: number): number {
  *   Σ n_ij (g_i·I_ij − g_j·I_ji)² / σN²  +  Σ n_i (1 − g_i)² / σg²
  * so frames agree in their overlaps while staying close to their own exposure.
  */
-function solveGains(n: number, obs: { i: number; j: number; a: number; b: number; cnt: number }[]): number[] {
+export function solveGains(n: number, obs: { i: number; j: number; a: number; b: number; cnt: number }[]): number[] {
   const sN = 10, sG = 0.1;
   const A = Array.from({ length: n }, () => new Array(n).fill(0));
   const B = new Array(n).fill(0);

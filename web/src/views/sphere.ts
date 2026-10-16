@@ -54,7 +54,14 @@ export function sphereView(): HTMLElement {
     try {
       const frames = shots.map((s) => ({ C: s.C!, hfovDeg: s.hfov }));
       const r = await browserSphere(shots.map((s) => s.blob), frames, 6144, 0.93, (st, f) => prog.set(st, f));
+      // the aligner measures the real camera width; remember it so the next
+      // capture's guide dots line up with what the camera sees
+      if (r.info?.hfovDeg) {
+        hfov.value = String(Math.round(r.info.hfovDeg));
+        localStorage.setItem(hfovKey, hfov.value);
+      }
       await finish(r.blob);
+      if (r.info && !r.info.aligned) status.textContent = 'Not enough overlap between frames to align them from the images; this one is placed from the phone sensors only.';
     } catch (e) { fail(e); }
   }
 
@@ -103,7 +110,8 @@ export function sphereView(): HTMLElement {
   async function capture() {
     try {
       const got = await captureSession(Number(hfov.value));
-      if (got.length) { shots = got; refresh(); }
+      if (got.shots.length) { shots = got.shots; refresh(); }
+      if (got.missed) status.textContent = `${got.missed} guide dots weren't captured, so those parts of the sphere will be empty.`;
     } catch (e) { fail(e); }
   }
 
@@ -135,7 +143,7 @@ export function sphereView(): HTMLElement {
 }
 
 /** Full-screen guided capture. Resolves with the captured frames. */
-async function captureSession(hfovDeg: number): Promise<Shot[]> {
+async function captureSession(hfovDeg: number): Promise<{ shots: Shot[]; missed: number }> {
   const feed: OrientationFeed = await startOrientation();
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
@@ -166,7 +174,7 @@ async function captureSession(hfovDeg: number): Promise<Shot[]> {
       stream.getTracks().forEach((t) => t.stop());
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       ui.remove();
-      resolve(keep ? shots : []);
+      resolve({ shots: keep ? shots : [], missed: keep ? taken.filter((t) => !t).length : 0 });
     };
     done.onclick = () => end(true);
     cancel.onclick = () => end(false);

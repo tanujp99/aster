@@ -3,27 +3,42 @@
 
 const XMP_NS = 'http://ns.adobe.com/xap/1.0/\0';
 
-export function gpanoXmp(width: number, height: number, fullW = width, fullH = Math.round(fullW / 2), left = 0, top = 0): string {
-  return `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
+/** GPano block as Google's camera writes it for a full sphere. */
+export function gpanoXmp(width: number, height: number, sourcePhotos = 0): string {
+  const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  return `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Aster">
  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
   <rdf:Description rdf:about="" xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
    GPano:UsePanoramaViewer="True"
+   GPano:CaptureSoftware="Aster"
+   GPano:StitchingSoftware="Aster (img.tanujp.com)"
    GPano:ProjectionType="equirectangular"
+   GPano:PoseHeadingDegrees="0.0"
+   GPano:InitialViewHeadingDegrees="0"
+   GPano:InitialViewPitchDegrees="0"
+   GPano:InitialViewRollDegrees="0"
+   GPano:InitialHorizontalFOVDegrees="75.0"
+   GPano:CroppedAreaLeftPixels="0"
+   GPano:CroppedAreaTopPixels="0"
    GPano:CroppedAreaImageWidthPixels="${width}"
    GPano:CroppedAreaImageHeightPixels="${height}"
-   GPano:FullPanoWidthPixels="${fullW}"
-   GPano:FullPanoHeightPixels="${fullH}"
-   GPano:CroppedAreaLeftPixels="${left}"
-   GPano:CroppedAreaTopPixels="${top}"
-   GPano:PoseHeadingDegrees="0"/>
+   GPano:FullPanoWidthPixels="${width}"
+   GPano:FullPanoHeightPixels="${height}"
+   GPano:FirstPhotoDate="${now}"
+   GPano:LastPhotoDate="${now}"
+   GPano:SourcePhotosCount="${sourcePhotos}"
+   GPano:ExposureLockUsed="False"/>
  </rdf:RDF>
 </x:xmpmeta>
 <?xpacket end="w"?>`;
 }
 
-/** Insert an XMP APP1 segment after the JPEG's SOI/APP0/APP1 segments. */
-export async function insertXmp(jpeg: Blob, xmp: string): Promise<Blob> {
+/**
+ * Insert APP1 segments right after the JPEG's SOI/APP0 (JFIF): EXIF first, then
+ * XMP — the order cameras use. Any APP1 the encoder wrote is dropped.
+ */
+export async function insertXmp(jpeg: Blob, xmp: string, exif?: Uint8Array): Promise<Blob> {
   const buf = new Uint8Array(await jpeg.arrayBuffer());
   if (buf[0] !== 0xff || buf[1] !== 0xd8) throw new Error('not a JPEG');
   const payload = new TextEncoder().encode(XMP_NS + xmp);
@@ -31,9 +46,15 @@ export async function insertXmp(jpeg: Blob, xmp: string): Promise<Blob> {
   const seg = new Uint8Array(4 + payload.length);
   seg.set([0xff, 0xe1, len >> 8, len & 0xff]);
   seg.set(payload, 4);
+  // keep APP0 (JFIF), skip existing APP1s
+  const head: Uint8Array[] = [buf.subarray(0, 2)];
   let i = 2;
-  while (buf[i] === 0xff && (buf[i + 1] === 0xe0 || buf[i + 1] === 0xe1)) i += 2 + ((buf[i + 2] << 8) | buf[i + 3]);
-  return new Blob([buf.subarray(0, i), seg, buf.subarray(i)], { type: 'image/jpeg' });
+  while (buf[i] === 0xff && (buf[i + 1] === 0xe0 || buf[i + 1] === 0xe1)) {
+    const l = 2 + ((buf[i + 2] << 8) | buf[i + 3]);
+    if (buf[i + 1] === 0xe0) head.push(buf.subarray(i, i + l));
+    i += l;
+  }
+  return new Blob([...head, ...(exif ? [exif] : []), seg, buf.subarray(i)] as BlobPart[], { type: 'image/jpeg' });
 }
 
 /** Read GPano dimensions if the JPEG carries them (used by the viewer). */
