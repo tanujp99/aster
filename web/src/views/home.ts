@@ -9,7 +9,7 @@ export function homeView(): HTMLElement {
     );
   return h('section', { class: 'view home' },
     h('header', { class: 'hero' },
-      h('p', { class: 'eyebrow' }, 'img.tanujp.com'),
+      h('span', { class: 'chip-accent eyebrow' }, 'img.tanujp.com'),
       h('h1', {}, 'Stitch the whole view.'),
       h('p', { class: 'lead' }, 'Panoramas and Photo Spheres, made on your own device. The tools load from the web; your photos never leave your computer or phone.'),
     ),

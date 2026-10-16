@@ -30,11 +30,11 @@ export function sphereView(): HTMLElement {
     actions.replaceChildren(
       ...(shots.length ? ([
         withSensors === shots.length
-          ? h('button', { class: 'btn', onclick: () => stitchHere() }, 'Stitch preview here')
+          ? h('button', { class: 'pill-link', onclick: () => stitchHere() }, 'Stitch preview here')
           : null,
-        h('button', { class: 'btn primary', disabled: !helper?.ok, title: helper?.ok ? '' : 'Start the Aster helper on this computer', onclick: () => stitchHelper() },
+        h('button', { class: 'pill-button', disabled: !helper?.ok, title: helper?.ok ? '' : 'Start the Aster helper on this computer', onclick: () => stitchHelper() },
           helper?.ok ? 'Stitch with local helper' : 'Local helper not running'),
-        withSensors ? h('button', { class: 'btn ghost', onclick: () => exportZip() }, 'Export frames (.zip)') : null,
+        withSensors ? h('button', { class: 'pill-link', onclick: () => exportZip() }, 'Export frames (.zip)') : null,
       ].filter(Boolean) as HTMLElement[]) : []),
     );
   };
@@ -45,7 +45,7 @@ export function sphereView(): HTMLElement {
     const where = await saveBlob(blob, name);
     result.replaceChildren(
       h('p', {}, 'Saved to ', h('span', { class: 'mono' }, where), ' with Photo Sphere metadata.'),
-      h('button', { class: 'btn', onclick: () => openInViewer(blob, name) }, 'Look around'),
+      h('button', { class: 'pill-link', onclick: () => openInViewer(blob, name) }, 'Look around'),
     );
   }
 
@@ -119,14 +119,14 @@ export function sphereView(): HTMLElement {
         h('h2', {}, 'Capture'),
         h('p', { class: 'muted' }, phone ? 'Hold the phone upright, turn on the spot, and line the ring up with each dot. It shoots automatically.' : 'Open this page on your phone to capture with guide dots.'),
         h('label', {}, 'Camera width (°) ', hfov),
-        h('button', { class: 'btn primary', onclick: capture, disabled: !navigator.mediaDevices?.getUserMedia }, 'Start capture'),
+        h('button', { class: 'pill-button', onclick: capture, disabled: !navigator.mediaDevices?.getUserMedia }, 'Start capture'),
       ),
       h('article', { class: 'card' },
         h('h2', {}, 'Stitch photos'),
         h('p', { class: 'muted' }, 'Shot a sphere manually, or exported frames from the phone? Pick the photos (and orientations.json if you have it).'),
         h('div', { class: 'row' },
-          h('button', { class: 'btn', onclick: () => importPhotos(false) }, 'Choose photos'),
-          h('button', { class: 'btn ghost', onclick: () => importPhotos(true) }, 'Choose a folder'),
+          h('button', { class: 'pill-link', onclick: () => importPhotos(false) }, 'Choose photos'),
+          h('button', { class: 'pill-link', onclick: () => importPhotos(true) }, 'Choose a folder'),
         ),
       ),
     ),
@@ -145,8 +145,8 @@ async function captureSession(hfovDeg: number): Promise<Shot[]> {
   video.srcObject = stream;
   const canvas = h('canvas', { class: 'overlay' }) as HTMLCanvasElement;
   const info = h('div', { class: 'cap-info' });
-  const done = h('button', { class: 'btn primary' }, 'Done');
-  const cancel = h('button', { class: 'btn ghost' }, 'Cancel');
+  const done = h('button', { class: 'pill-button' }, 'Done');
+  const cancel = h('button', { class: 'pill-link' }, 'Cancel');
   const ui = h('div', { class: 'capture' }, video, canvas, info, h('div', { class: 'cap-bar' }, cancel, done));
   document.body.append(ui);
   try { await (ui as any).requestFullscreen?.(); } catch { /* optional */ }
@@ -211,7 +211,7 @@ async function captureSession(hfovDeg: number): Promise<Shot[]> {
         const x = W / 2 + (f * c[0]) / c[2], y = H / 2 + (f * c[1]) / c[2];
         g.beginPath();
         g.arc(x, y, (taken[k] ? 7 : 12) * devicePixelRatio, 0, Math.PI * 2);
-        g.fillStyle = taken[k] ? 'rgba(255,255,255,0.35)' : 'rgba(255,196,64,0.95)';
+        g.fillStyle = taken[k] ? 'rgba(255,255,255,0.35)' : 'rgba(255,144,232,0.95)';
         g.fill();
       });
       // centre ring

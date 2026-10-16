@@ -45,8 +45,8 @@ export function panoramaView(): HTMLElement {
     h('p', {}, h('strong', {}, 'Drop your overlapping photos here')),
     h('p', { class: 'muted' }, 'Shot left-to-right or right-to-left, ~30% overlap. They stay on this device.'),
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: async () => setFiles(await pickPhotos()) }, 'Choose photos'),
-      h('button', { class: 'btn ghost', onclick: async () => setFiles(await pickPhotos({ folder: true })) }, 'Choose a folder'),
+      h('button', { class: 'pill-link', onclick: async () => setFiles(await pickPhotos()) }, 'Choose photos'),
+      h('button', { class: 'pill-link', onclick: async () => setFiles(await pickPhotos({ folder: true })) }, 'Choose a folder'),
     ),
   );
   drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
@@ -56,7 +56,7 @@ export function panoramaView(): HTMLElement {
     setFiles(Array.from(e.dataTransfer?.files ?? []));
   });
 
-  const go = h('button', { class: 'btn primary', disabled: true, onclick: () => run() }, 'Stitch panorama') as HTMLButtonElement;
+  const go = h('button', { class: 'pill-button', disabled: true, onclick: () => run() }, 'Stitch panorama') as HTMLButtonElement;
 
   async function run() {
     go.disabled = true;
@@ -92,7 +92,7 @@ export function panoramaView(): HTMLElement {
       result.replaceChildren(
         h('div', { class: 'pano-strip' }, img), meta,
         h('p', {}, 'Saved to ', h('span', { class: 'mono' }, where)),
-        h('button', { class: 'btn', onclick: () => openInViewer(blob, name) }, 'Open in viewer'),
+        h('button', { class: 'pill-link', onclick: () => openInViewer(blob, name) }, 'Open in viewer'),
       );
     } catch (e) {
       prog.hide();
@@ -126,7 +126,7 @@ export function panoramaView(): HTMLElement {
       h('label', {}, 'JPEG quality ', qLabel, quality),
       h('label', {}, 'Save to ', outLabel,
         canPickFolder()
-          ? h('button', { class: 'btn ghost small', onclick: async () => { outLabel.textContent = (await chooseOutputFolder()) ?? 'Downloads'; } }, 'Choose folder')
+          ? h('button', { class: 'pill-link small', onclick: async () => { outLabel.textContent = (await chooseOutputFolder()) ?? 'Downloads'; } }, 'Choose folder')
           : null),
       go,
     ),

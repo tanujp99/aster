@@ -65,7 +65,7 @@ export function viewerView(): HTMLElement {
       h('p', { class: 'lead' }, 'Drag to look around a Photo Sphere, or pan and zoom a wide panorama. Files open locally.'),
     ),
     h('div', { class: 'row' },
-      h('button', { class: 'btn', onclick: async () => { const [f] = await pickPhotos(); if (f) show(f, f.name); } }, 'Open an image'),
+      h('button', { class: 'pill-link', onclick: async () => { const [f] = await pickPhotos(); if (f) show(f, f.name); } }, 'Open an image'),
     ),
     meta, stage,
   );
